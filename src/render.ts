@@ -126,10 +126,14 @@ function renderExplore(details: any, _opts: RenderOpts, theme: any): Text {
     content += line + "\n";
   }
   for (const f of details.files ?? []) {
-    content +=
-      theme.fg("warning", `${ICON.file} `) +
-      theme.fg("text", clip(f, 60)) +
-      "\n";
+    const fname = typeof f === "string" ? f : f.name;
+    const fkw = typeof f === "string" ? [] : f.keywords ?? [];
+    let line =
+      theme.fg("warning", `${ICON.file} `) + theme.fg("text", clip(fname, 60));
+    if (fkw.length > 0)
+      line +=
+        " " + theme.fg("muted", `${ICON.keywords} ${clip(fkw.join(", "), 60)}`);
+    content += line + "\n";
   }
   if (details.more > 0) {
     content += theme.fg("muted", `${details.more}+ more`) + "\n";

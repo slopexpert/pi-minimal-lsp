@@ -14,9 +14,11 @@ without having to read entire files or dumping all symbols in a directory.
 See `specs/reference/lsp_keywords_diff.py` for a reference keyword algorithm that uses TF-IDF scoring
 
 ## guidance
+- **Prefer `lsp_explore` over bash for orientation.** Never use `cd <dir> && ls`, `cat`, `head`, or `grep -r` to get a project or directory overview or to list a file's symbols. Use `lsp_explore` (no path = whole project, dir path = that dir, file path = file symbols).
 - Explore broad -> narrow: no path, then dir, then file. Don't read whole files to get oriented.
 - Empty query = full outline (no filter), not an empty search.
-- Use `lsp_search` if you know a symbol name, `lsp_at` for a location, `read` after you've located something.
+- Use `lsp_search` if you know a symbol name, `lsp_at` for a location, `read` only after you've located something specific.
+- Scope bash (`grep`/`find`) to a directory you already know; never use it to orient.
 - Output is a bounded sample (`... N more` = more exists). Don't assume absence; drill deeper.
 - Explore never returns file bodies.
 
@@ -28,8 +30,11 @@ root markers: `go.mod`, `go.sum`, `.git`
 - cli/ (keywords cmd, issue, root)
 - model/ (keywords nav, messages)
 - model/issues/ (keywords form, list, panels)
+- main.go (keywords main, connect, db)
 ```
 - show the root markers only on no path
+- every immediate entry (dir **and** file) may carry its own keywords, scored vs same-level siblings
+- files with no language server (json, lockfiles, configs) or no distinct tokens show without keywords
 
 ### path is file
 ```markdown
@@ -38,6 +43,7 @@ outline of file `isshues/cli/new_issue_cmd.go`
 - Variable `var count int` 3:5
 ```
 (`line:col`)
+- each row is the symbol **kind** (Function, Variable, Class, ...) + its signature + `line:col`
 
 ## human output
 ### no path/path is dir

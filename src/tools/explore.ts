@@ -14,8 +14,9 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { isTestPath, extractCounts, distinctiveKeywords } from "../keywords.ts";
 import { documentSymbols } from "../lsp/queries.ts";
 import type { DocumentSymbol } from "../lsp/types.ts";
-import { pathToUri, isWithin, isDir, isFile } from "../helpers.ts";
+import { pathToUri, isWithin, isDir } from "../helpers.ts";
 import { collectSourceFiles } from "../collect.ts";
+import { kindInfo } from "../kinds.ts";
 import { renderCall as uiRenderCall, renderResult as uiRenderResult } from "../render.ts";
 
 const MAX_DIRS = 40;
@@ -107,6 +108,28 @@ function siblingKeywordGroups(
 	})();
 }
 
+function siblingFileKeywordGroups(
+	cwd: string,
+	manager: ReturnType<typeof getManager>,
+	targetDir: string,
+	files: string[],
+): Promise<Map<string, Map<string, number>>> {
+	return (async () => {
+		const groups = new Map<string, Map<string, number>>();
+		for (const child of files) {
+			const abs = join(targetDir, child);
+			if (isDir(abs) || isTestPath(child)) continue;
+			try {
+				const syms = await collectFileSymbols(manager, abs);
+				groups.set(child, extractCounts(syms));
+			} catch {
+				/* skip unreadable / server hiccups */
+			}
+		}
+		return groups;
+	})();
+}
+
 export function registerExplore(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "lsp_explore",
@@ -115,8 +138,9 @@ export function registerExplore(pi: ExtensionAPI): void {
 			"Explore a project/directory (outline + keywords, never file bodies) or get a file's symbol outline. With no path, overviews the whole project; with a dir path, overviews that dir; with a file path, lists its symbols. Empty query = full outline. Output is a bounded sample (`... N more` means more exists).",
 		promptSnippet: "Browse a project, directory, or file outline token-efficiently",
 		promptGuidelines: [
+			"PREFER lsp_explore over bash for orientation: never use `cd <dir> && ls` / `cat` / `head` / `grep -r` to get a project or directory overview or to list a file's symbols. Use lsp_explore (no path = whole project, dir path = that dir, file path = file symbols) instead.",
 			"Explore broad -> narrow with lsp_explore (no path, then dir, then file) instead of reading whole files to get oriented.",
-			"Use lsp_search if you know a symbol name and lsp_at for a precise location; use read after you've located something.",
+			"Use lsp_search if you know a symbol name and lsp_at for a precise location; use read only after you've located something specific, and scope bash (grep/find) to a dir you already know.",
 		],
 		parameters: Type.Object({
 			path: Type.Optional(Type.String({ description: "Path to explore: file or directory (default: whole project)" })),
@@ -176,8 +200,9 @@ async function fileOutline(cwd: string, manager: ReturnType<typeof getManager>, 
 	const heading = query ? `symbols in file \`${rel(cwd, file)}\` matching \`${query}\`` : `outline of file \`${rel(cwd, file)}\``;
 	const agent = [heading];
 	for (const r of rows) {
+		const info = kindInfo(r.kind);
 		const sig = r.detail && r.detail.includes("(") ? r.detail : `${r.name}`;
-		agent.push(`- ${sig} ${r.line}:${r.col}`);
+		agent.push(`- ${info.name} \`${sig}\` ${r.line}:${r.col}`);
 	}
 	agent.push(`(${rows.length} symbols)`);
 
@@ -217,13 +242,24 @@ async function dirOverview(
 		}
 	}
 
+	// keywords per immediate file, scored vs sibling files
+	let fileKeywords = new Map<string, string[]>();
+	if (files.length > 0) {
+		try {
+			const fgroups = await siblingFileKeywordGroups(cwd, manager, dir, files.slice(0, MAX_TOTAL_FILES));
+			fileKeywords = distinctiveKeywords(fgroups);
+		} catch {
+			fileKeywords = new Map();
+		}
+	}
+
 	// filter by query
 	let shownDirs = dirs;
 	let shownFiles = files;
 	if (query) {
 		const q = query.toLowerCase();
 		shownDirs = dirs.filter((d) => d.toLowerCase().includes(q) || (keywords.get(d) ?? []).some((k) => k.includes(q)));
-		shownFiles = files.filter((f) => f.toLowerCase().includes(q));
+		shownFiles = files.filter((f) => f.toLowerCase().includes(q) || (fileKeywords.get(f) ?? []).some((k) => k.includes(q)));
 	}
 
 	const totalChildren = shownDirs.length + shownFiles.length;
@@ -242,7 +278,8 @@ async function dirOverview(
 		agent.push(kw.length > 0 ? `- ${d}/ (keywords ${kw.join(", ")})` : `- ${d}/`);
 	}
 	for (const f of cappedFiles) {
-		agent.push(`- ${f}`);
+		const kw = fileKeywords.get(f) ?? [];
+		agent.push(kw.length > 0 ? `- ${f} (keywords ${kw.join(", ")})` : `- ${f}`);
 	}
 	if (more > 0) agent.push(`... ${more} more`);
 
@@ -255,7 +292,7 @@ async function dirOverview(
 			root: isRoot,
 			rootMarkers: isRoot ? manager.rootMarkersOf(cwd) : undefined,
 			dirs: cappedDirs.map((d) => ({ name: d, keywords: keywords.get(d) ?? [] })),
-			files: cappedFiles,
+			files: cappedFiles.map((f) => ({ name: f, keywords: fileKeywords.get(f) ?? [] })),
 			more,
 			query,
 		},
