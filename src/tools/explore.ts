@@ -16,6 +16,7 @@ import { documentSymbols } from "../lsp/queries.ts";
 import type { DocumentSymbol } from "../lsp/types.ts";
 import { pathToUri, isWithin, isDir, isFile } from "../helpers.ts";
 import { collectSourceFiles } from "../collect.ts";
+import { renderCall as uiRenderCall, renderResult as uiRenderResult } from "../render.ts";
 
 const MAX_DIRS = 40;
 const MAX_FILES_PER_DIR = 30;
@@ -123,6 +124,12 @@ export function registerExplore(pi: ExtensionAPI): void {
 		}),
 		async execute(_toolCallId, params: ExploreParams, _signal, _onUpdate, ctx) {
 			return explore(params, ctx);
+		},
+		renderCall(args: ExploreParams, theme: any) {
+			return uiRenderCall("lsp_explore", args as Record<string, unknown>, theme);
+		},
+		renderResult(result: any, options: any, theme: any) {
+			return uiRenderResult(result.details, { expanded: options?.expanded, isPartial: options?.isPartial }, theme);
 		},
 	});
 }

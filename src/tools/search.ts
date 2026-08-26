@@ -13,6 +13,7 @@ import { getManager } from "../runtime.ts";
 import { documentSymbols, workspaceSymbols } from "../lsp/queries.ts";
 import { pathToUri, isWithin, uriToPath } from "../helpers.ts";
 import { collectSourceFiles } from "../collect.ts";
+import { renderCall as uiRenderCall, renderResult as uiRenderResult } from "../render.ts";
 
 interface SearchParams {
 	query: string;
@@ -60,6 +61,12 @@ export function registerSearch(pi: ExtensionAPI): void {
 		}),
 		async execute(_toolCallId, params: SearchParams, _signal, _onUpdate, ctx) {
 			return search(params, ctx);
+		},
+		renderCall(args: SearchParams, theme: any) {
+			return uiRenderCall("lsp_search", args as unknown as Record<string, unknown>, theme);
+		},
+		renderResult(result: any, options: any, theme: any) {
+			return uiRenderResult(result.details, { expanded: options?.expanded, isPartial: options?.isPartial }, theme);
 		},
 	});
 }

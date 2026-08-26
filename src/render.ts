@@ -39,10 +39,8 @@ export function renderCall(toolName: string, args: Record<string, unknown>, them
 
 export function renderResult(details: any, opts: RenderOpts, theme: any): Text {
 	switch (details?.kind) {
-		case "explore": {
-			if (details.root !== undefined || details.file) return renderExplore(details, opts, theme);
+		case "explore":
 			return renderExplore(details, opts, theme);
-		}
 		case "search":
 			return renderSearch(details, opts, theme);
 		case "at":
@@ -122,15 +120,14 @@ function renderAt(details: any, _opts: RenderOpts, theme: any): Text {
 	const text = new Text("", 1, 0);
 	let content = "";
 	let shown = 0;
-	const kinds = details.kinds ?? [];
-	for (const k of kinds) {
-		const info = { name: k.kindLabel, icon: k.icon } as any;
-		const line =
-			`${info.icon} ${k.label}\t` +
-			(k.summary !== undefined
-				? theme.fg("fg", String(k.summary))
-				: (k.locations ?? []).map((l: any) => theme.fg("muted", l)).join(" "));
-		content += `${theme.fg("accent", info.icon)} ${theme.fg("accent", k.label)}\t${line}` + "\n";
+	for (const k of details.results ?? []) {
+		const icon = k.icon ?? "\uF087";
+		if (k.summary !== undefined) {
+			content += `${theme.fg("accent", `${icon} ${k.label}`)}  ${theme.fg("fg", String(k.summary))}` + "\n";
+		} else {
+			const locs = (k.locations ?? []).map((l: any) => theme.fg("muted", l)).join(" ");
+			content += `${theme.fg("accent", `${icon} ${k.label}`)}  ${locs}` + "\n";
+		}
 		shown++;
 	}
 	if (details.more > 0) {

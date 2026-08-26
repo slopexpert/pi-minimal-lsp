@@ -32,6 +32,7 @@ export class LanguageManager {
 	private openDocs = new Map<string, OpenDoc>(); // keyed by abs path
 	private diagnostics = new Map<string, Diagnostic[]>(); // keyed by pathToUri
 	private diagVersion = new Map<string, number>(); // per-uri change counter
+	private diagEvents = 0; // total publishDiagnostics received across servers
 
 	constructor(
 		private cwd: string,
@@ -147,7 +148,13 @@ export class LanguageManager {
 	private onDiagnostics: DiagnosticsHandler = (uri, diags) => {
 		this.diagnostics.set(uri, diags);
 		this.diagVersion.set(uri, (this.diagVersion.get(uri) ?? 0) + 1);
+		this.diagEvents++;
 	};
+
+	/** Total count of publishDiagnostics events received. */
+	diagEventCount(): number {
+		return this.diagEvents;
+	}
 
 	/** Latest pushed diagnostics for a file, keyed by its path. */
 	diagnosticsFor(absFile: string): Diagnostic[] {
