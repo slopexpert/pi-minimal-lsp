@@ -54,6 +54,7 @@ export class LanguageServer {
 	private closed = false;
 	private readyPromise: Promise<void>;
 	private readyResolve!: () => void;
+	private readyDone = false;
 	private diagHandlers = new Set<DiagnosticsHandler>();
 	readonly languageId: string;
 	readonly rootUri: string | null;
@@ -89,8 +90,8 @@ export class LanguageServer {
 
 	private route(msg: IncomingMessage): void {
 		if ((msg as RequestMessage).id !== undefined && "method" in msg) {
-			this.log(`[unhandled request] ${(msg as RequestMessage).method}`);
-			this.send({ jsonrpc: "2.0", id: (msg as RequestMessage).id, error: { code: -32601, message: "method not found" } } as never);
+			const req = msg as RequestMessage;
+			this.handleRequest(req);
 			return;
 		}
 		if ((msg as RequestMessage).id !== undefined && ("result" in msg || "error" in msg)) {
@@ -119,6 +120,37 @@ export class LanguageServer {
 		}
 	}
 
+	/** Answer server-initiated requests (a small surface that gopls/other servers rely on). */
+	private async handleRequest(req: RequestMessage): Promise<void> {
+		try {
+			switch (req.method) {
+				case "workspace/configuration": {
+					const items = (req.params as { items?: Array<{ section?: string }> } | undefined)?.items ?? [];
+					const result = items.map((it) => {
+						const section = it.section ?? "";
+						const settings = this.options.settings ?? {};
+						return section.split(".").reduce((acc, k) => (acc && typeof acc === "object" ? (acc as any)[k] : undefined), settings) ?? null;
+					});
+					this.send({ jsonrpc: "2.0", id: req.id, result });
+					return;
+				}
+				case "workspace/workspaceFolders": {
+					this.send({
+						jsonrpc: "2.0",
+						id: req.id,
+						result: this.options.rootUri === null ? null : [{ uri: this.options.rootUri, name: this.options.rootUri.split("/").pop() ?? "" }],
+					});
+					return;
+				}
+				default:
+					this.log(`[unhandled request] ${req.method}`);
+					this.send({ jsonrpc: "2.0", id: req.id, error: { code: -32601, message: "method not found" } } as never);
+			}
+		} catch (err) {
+			this.send({ jsonrpc: "2.0", id: req.id, error: { code: -32603, message: `internal error: ${(err as Error).message}` } } as never);
+		}
+	}
+
 	private async init(): Promise<void> {
 		try {
 			const result = (await this.request("initialize", {
@@ -138,8 +170,10 @@ export class LanguageServer {
 				this.notify("workspace/didChangeConfiguration", { settings: this.options.settings });
 			}
 			this.readyResolve();
+			this.readyDone = true;
 		} catch (err) {
 			this.log(`initialize failed: ${(err as Error).message}`);
+			this.readyDone = true;
 			this.readyResolve();
 		}
 	}
@@ -151,6 +185,11 @@ export class LanguageServer {
 	/** Resolves once the server is past `initialized`. */
 	ready(): Promise<void> {
 		return this.readyPromise;
+	}
+
+	/** True once the server has finished initialize/initialized. */
+	isReady(): boolean {
+		return this.readyDone;
 	}
 
 	/** Fire a request and await its response. */

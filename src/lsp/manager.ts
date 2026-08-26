@@ -83,6 +83,7 @@ export class LanguageManager {
 
 		const handle = match ? this.servers.get(id) : undefined;
 		if (!handle) return;
+		if (!handle.server.isReady()) return; // deferred until ready (openTrackedForServer)
 		if (existing) {
 			handle.server.didChange(uri, text, version);
 		} else {
