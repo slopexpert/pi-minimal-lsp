@@ -12,7 +12,7 @@ import { Type } from "typebox";
 import { getManager } from "../runtime.ts";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isTestPath, extractCounts, distinctiveKeywords } from "../keywords.ts";
-import { documentSymbols } from "../lsp/queries.ts";
+import { documentSymbols, hover, toPosition } from "../lsp/queries.ts";
 import type { DocumentSymbol } from "../lsp/types.ts";
 import { pathToUri, isWithin, isDir } from "../helpers.ts";
 import { collectSourceFiles } from "../collect.ts";
@@ -56,6 +56,24 @@ function flattenSymbols(syms: DocumentSymbol[], rows: OutlineRow[] = [], file?: 
 		if (s.children) flattenSymbols(s.children, rows, file);
 	}
 	return rows;
+}
+
+/** Keep the doc-comment text from a hover, dropping the fenced signature echo. */
+function hoverDoc(contents: { kind: string; value: string } | string | Array<string | { kind: string; value: string }>): string {
+	const flat: string[] = [];
+	const push = (c: unknown) => {
+		if (typeof c === "string") flat.push(c);
+		else if (c && typeof (c as any).value === "string") flat.push((c as any).value);
+	};
+	if (typeof contents === "string") push(contents);
+	else if (Array.isArray(contents)) contents.forEach(push);
+	else push(contents);
+	const raw = flat.join("\n");
+	// even segments are outside ``` fences = real doc text, not the signature
+	let doc = "";
+	const parts = raw.split(/```[a-z]*\n?|```/);
+	for (let i = 0; i < parts.length; i += 2) doc += parts[i];
+	return doc.replace(/\n{2,}/g, "\n").trim().slice(0, 300);
 }
 
 function filterRows(rows: OutlineRow[], query?: string): OutlineRow[] {
@@ -140,6 +158,7 @@ export function registerExplore(pi: ExtensionAPI): void {
 		promptGuidelines: [
 			"PREFER lsp_explore over bash for orientation: never use `cd <dir> && ls` / `cat` / `head` / `grep -r` to get a project or directory overview or to list a file's symbols. Use lsp_explore (no path = whole project, dir path = that dir, file path = file symbols) instead.",
 			"Use the `query` param to narrow an overview: it filters dirs/files by name OR by their keywords (e.g. lsp_explore with query='db' to surface the files/dirs most relevant to DB code). Prefer scoping with query over reading the whole outline.",
+			"Don't read whole files just to see what they contain: lsp_explore <file> already lists each top-level symbol's signature + a doc/summary line. Read only after you've narrowed to a specific symbol, and read just the range/lines you need.",
 			"Explore broad -> narrow with lsp_explore (no path, then dir, then file) instead of reading whole files to get oriented.",
 			"Use lsp_search if you know a symbol name and lsp_at for a precise location; use read only after you've located something specific, and scope bash (grep/find) to a dir you already know.",
 		],
@@ -195,7 +214,22 @@ async function fileOutline(cwd: string, manager: ReturnType<typeof getManager>, 
 	const text = readFileSync(file, "utf8");
 	manager.upsertDocument(file, res.handle.config.languageId, text);
 	await res.handle.server.ready();
-	const syms = await documentSymbols(res.handle.server, pathToUri(file));
+	const uri = pathToUri(file);
+	const syms = await documentSymbols(res.handle.server, uri);
+
+	// hover/doc summaries for a few top-level symbols so agents can skip full reads
+	const summaries = new Map<string, string>();
+	for (const s of syms.slice(0, 12)) {
+		const pos = toPosition(s.selectionRange.start.line, s.selectionRange.start.character);
+		try {
+			const h = await hover(res.handle.server, uri, pos);
+			const t = h?.contents ? hoverDoc(h.contents) : "";
+			if (t.length >= 4) summaries.set(`${s.selectionRange.start.line}:${s.selectionRange.start.character}`, t);
+		} catch {
+			/* ignore */
+		}
+	}
+
 	const rows = filterRows(flattenSymbols(syms), query);
 
 	const heading = query ? `symbols in file \`${rel(cwd, file)}\` matching \`${query}\`` : `outline of file \`${rel(cwd, file)}\``;
@@ -203,7 +237,8 @@ async function fileOutline(cwd: string, manager: ReturnType<typeof getManager>, 
 	for (const r of rows) {
 		const info = kindInfo(r.kind);
 		const sig = r.detail && r.detail.includes("(") ? r.detail : `${r.name}`;
-		agent.push(`- ${info.name} \`${sig}\` ${r.line}:${r.col}`);
+		const sum = summaries.get(`${r.line - 1}:${r.col - 1}`);
+		agent.push(`- ${info.name} \`${sig}\` ${r.line}:${r.col}${sum ? `  # ${sum}` : ""}`);
 	}
 	agent.push(`(${rows.length} symbols)`);
 

@@ -18,6 +18,7 @@ See `specs/reference/lsp_keywords_diff.py` for a reference keyword algorithm tha
 - Explore broad -> narrow: no path, then dir, then file. Don't read whole files to get oriented.
 - Empty query = full outline (no filter), not an empty search.
 - **Use `query` to narrow an overview**: it filters dirs/files by name or by their keywords (e.g. `query='db'` surfaces the files/dirs most relevant to DB code). Prefer scoping with query over scanning the full outline.
+- **Don't read whole files just to see what they contain.** `lsp_explore <file>` already lists each top-level symbol's kind, signature, and a doc/summary line. Read only after you've narrowed to a specific symbol, and read just the lines/range you need.
 - Use `lsp_search` if you know a symbol name, `lsp_at` for a location, `read` only after you've located something specific.
 - Scope bash (`grep`/`find`) to a directory you already know; never use it to orient.
 - Output is a bounded sample (`... N more` = more exists). Don't assume absence; drill deeper.
@@ -40,11 +41,13 @@ root markers: `go.mod`, `go.sum`, `.git`
 ### path is file
 ```markdown
 outline of file `isshues/cli/new_issue_cmd.go`
-- Function `func NewIssueCmd(app *app.App) error` 2:3
+- Function `func NewIssueCmd(app *app.App) error` 2:3  # Creates a new issue from the CLI
 - Variable `var count int` 3:5
 ```
 (`line:col`)
 - each row is the symbol **kind** (Function, Variable, Class, ...) + its signature + `line:col`
+- top-level symbols get a short hover/doc summary after `#` (capped at ~12 symbols, truncated)
+- the summary helps the agent decide whether a file needs reading at all
 
 ## human output
 ### no path/path is dir
