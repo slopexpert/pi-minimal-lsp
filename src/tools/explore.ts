@@ -238,8 +238,8 @@ async function dirOverview(
 		if (markers.length > 0) agent.push(`root markers: \`${markers.join("\`, \`")}\``);
 	}
 	for (const d of cappedDirs) {
-		const kw = keywords.get(d);
-		agent.push(`- ${d}/ (keywords ${(kw ?? []).join(", ") || "none"})`);
+		const kw = keywords.get(d) ?? [];
+		agent.push(kw.length > 0 ? `- ${d}/ (keywords ${kw.join(", ")})` : `- ${d}/`);
 	}
 	for (const f of cappedFiles) {
 		agent.push(`- ${f}`);

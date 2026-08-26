@@ -11,10 +11,8 @@ let manager: LanguageManager | null = null;
 let servers: Record<string, LSServerConfig> = {};
 let extraPaths: string[] = [];
 
-function debugLog(msg: string): void {
-	// surfaced to the user only on demand; keep quiet in normal operation
-	console.error(`[minimal-lsp] ${msg}`);
-}
+// silence server logs unless explicitly re-enabled
+const debugLog = (_msg: string): void => {};
 
 /** Reset for a new session/cwd; disposes any old servers. */
 export function initRuntime(cwd: string): LanguageManager {

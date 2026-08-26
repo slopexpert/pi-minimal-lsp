@@ -111,10 +111,7 @@ export class LanguageManager {
 		if (root === null && !config.singleFile) return null;
 
 		const executable = findExecutable(config.command, this.extraPaths);
-		if (!executable) {
-			this.log(`server '${id}' (${config.command}) not found on path`);
-			return null;
-		}
+		if (!executable) return null;
 		const cwd = root ?? dirname(absFile);
 		const handle: ServerHandle = {
 			id,
