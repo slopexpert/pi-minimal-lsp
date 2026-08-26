@@ -14,7 +14,10 @@ without having to read entire files or dumping all symbols in a directory.
 See `specs/reference/lsp_keywords_diff.py` for a reference keyword algorithm that uses TF-IDF scoring
 
 ## guidance
-- **Prefer `lsp_explore` over bash for orientation.** Never use `cd <dir> && ls`, `cat`, `head`, or `grep -r` to get a project or directory overview or to list a file's symbols. Use `lsp_explore` (no path = whole project, dir path = that dir, file path = file symbols).
+- **Think of `lsp_explore` as a better `ls` on dirs and an outline viewer on files**: on a dir it lists entries + keywords, on a file it lists top-level symbols instead of raw text.
+- **Start any unfamiliar project with a no-path `lsp_explore`.** It returns root markers plus top-level dirs/files with keywords, so orient from the outline before anything else. Never use `cd <dir> && ls`, `cat`, `head`, or `grep -r` to get a project or directory overview or to list a file's symbols. Use `lsp_explore` (no path = whole project, dir path = that dir, file path = file symbols).
+- **Drill in one level at a time.** Follow a no-path overview with `lsp_explore <dir>`, and keep drilling until the outline is small enough to read before opening any file. Re-run an overview when you lose your bearings.
+- **Treat overview keywords as your map.** They say what each dir/file contains (scored vs same-level siblings), so use them to pick the next directory or file to open instead of guessing or grepping.
 - Explore broad -> narrow: no path, then dir, then file. Don't read whole files to get oriented.
 - Empty query = full outline (no filter), not an empty search.
 - **Use `query` to narrow an overview**: it filters dirs/files by name or by their keywords (e.g. `query='db'` surfaces the files/dirs most relevant to DB code). Prefer scoping with query over scanning the full outline.

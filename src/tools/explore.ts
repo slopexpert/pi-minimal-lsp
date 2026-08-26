@@ -156,10 +156,12 @@ export function registerExplore(pi: ExtensionAPI): void {
 			"Explore a project/directory (outline + keywords, never file bodies) or get a file's symbol outline. With no path, overviews the whole project; with a dir path, overviews that dir; with a file path, lists its symbols. Empty query = full outline. Output is a bounded sample (`... N more` means more exists).",
 		promptSnippet: "Browse a project, directory, or file outline token-efficiently",
 		promptGuidelines: [
-			"PREFER lsp_explore over bash for orientation: never use `cd <dir> && ls` / `cat` / `head` / `grep -r` to get a project or directory overview or to list a file's symbols. Use lsp_explore (no path = whole project, dir path = that dir, file path = file symbols) instead.",
-			"Use the `query` param to narrow an overview: it filters dirs/files by name OR by their keywords (e.g. lsp_explore with query='db' to surface the files/dirs most relevant to DB code). Prefer scoping with query over reading the whole outline.",
+			"Think of lsp_explore as a better `ls` on dirs and an outline viewer on files: on a dir it lists entries + keywords, on a file it lists top-level symbols instead of raw text.",
+			"Call `lsp_explore` with no path FIRST on any unfamiliar project: it returns root markers and the top-level dirs/files with keywords, so you orient from the outline instead of bash. Never use `cd <dir> && ls` / `cat` / `head` / `grep -r` to get a project or directory overview or to list a file's symbols.",
+			"Drill in one level at a time: follow a no-path overview with `lsp_explore <dir>` for the area you care about, and keep drilling until the outline is small enough to read before opening any file.",
+			"Treat overview keywords as your map: they say what each dir/file contains, so use them to pick the next directory or file to open instead of guessing or grepping.",
+			"Narrow an overview with the `query` param: it filters dirs/files by name OR by their keywords (e.g. lsp_explore with query='db' surfaces the files/dirs most relevant to DB code). Prefer scoping with query over scanning the full outline.",
 			"Don't read whole files just to see what they contain: lsp_explore <file> already lists each top-level symbol's signature + a doc/summary line. Read only after you've narrowed to a specific symbol, and read just the range/lines you need.",
-			"Explore broad -> narrow with lsp_explore (no path, then dir, then file) instead of reading whole files to get oriented.",
 			"Use lsp_search if you know a symbol name and lsp_at for a precise location; use read only after you've located something specific, and scope bash (grep/find) to a dir you already know.",
 		],
 		parameters: Type.Object({

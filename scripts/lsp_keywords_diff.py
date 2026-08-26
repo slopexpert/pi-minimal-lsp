@@ -6,6 +6,7 @@ scores high when it is frequent in one package but rare in its siblings (a
 TF-IDF-style weighting), so the output highlights what makes each package
 special rather than what is common everywhere.
 """
+
 import argparse
 import math
 import os
@@ -55,9 +56,13 @@ def main():
             if not counter:
                 print(f"  {os.path.relpath(pkg, args.root):24s} (no symbols)")
                 continue
+            # skip tokens that just echo the package/dir name
+            skip = {t for t in re.split(mkw._TOKEN_RE, os.path.basename(pkg).lower()) if mkw.normalize_token(t)}
             # tf-idf vs siblings: common everywhere -> ~0, unique -> high
             scored = Counter()
             for tok, cnt in counter.items():
+                if tok in skip:
+                    continue
                 f = df[(parent, tok)]
                 idf = math.log((1 + n) / (1 + f))
                 scored[tok] = cnt * idf

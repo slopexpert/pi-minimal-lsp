@@ -56,10 +56,22 @@ export function extractCounts(symbols: DocumentSymbol[], minLen = 2): Map<string
 	return counts;
 }
 
+/** token set from a group name, used to drop keywords that just echo the file/dir name */
+function nameTokens(name: string): Set<string> {
+	const set = new Set<string>();
+	for (const part of name.split(TOKEN_RE)) {
+		const t = normalizeToken(part);
+		if (t) set.add(t);
+	}
+	return set;
+}
+
 /**
  * Score each group's keywords for distinctiveness vs its sibling groups.
  * `groups` maps groupName -> per-group token counts. Returns groupName -> top
  * keywords, ordered by a tf-idf style score (unique-to-a-group tokens rank high).
+ * Keywords that just duplicate the group's own name (e.g. `main` for main.go)
+ * are dropped so the list adds signal beyond what the name already tells us.
  */
 export function distinctiveKeywords(
 	groups: Map<string, Map<string, number>>,
@@ -72,8 +84,10 @@ export function distinctiveKeywords(
 	const n = Math.max(groups.size, 1);
 	const out = new Map<string, string[]>();
 	for (const [group, counts] of groups) {
+		const skip = nameTokens(group);
 		const scored: Array<[string, number]> = [];
 		for (const [tok, cnt] of counts) {
+			if (skip.has(tok)) continue;
 			const idf = Math.log((1 + n) / (1 + (df.get(tok) ?? 0)));
 			scored.push([tok, cnt * idf]);
 		}
