@@ -35,5 +35,6 @@ lsp_at cmd/new_issue.go:10:2
 N+ more (<key> to expand)
 ```
 - `<key>` is the expand tool key (ctrl+o by default)
+- output is collapsed to a ~10-row preview by default; `N+ more (ctrl+o to expand)` hints at the rest, ctrl+o toggles the full list
 - the icon, kind label, and summary should follow the same color rules as `lsp_search`
 - see `specs/reference/lsp_icon_kinds.md` for the lsp icons

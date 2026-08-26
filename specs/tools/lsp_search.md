@@ -35,6 +35,7 @@ lsp_search "err"
 N+ more (<key> to expand)
 ```
 - `<key>` is the expand tool key (ctrl+o by defualt)
+- output is collapsed to a ~10-row preview by default; `N+ more (ctrl+o to expand)` hints at the rest, ctrl+o toggles the full list
 - the file:line:col should be muted color
 - the lsp icons should be accent color
 - the symbol names should be fg color

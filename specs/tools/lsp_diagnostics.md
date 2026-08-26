@@ -23,8 +23,9 @@ lsp_diagnostics
  asdasdasdasd (file.go:2:1)
  qweioqwiouqweui (file.go:10:1)
 ```
-- `nf-cod-error` for the checkmark, use "error" color
+- `nf-cod-error` for the error, use "error" color
 - `nf-fa-warning` for the warning, use "warning" color
+- output is collapsed to a ~10-item preview; `N+ more (ctrl+o to expand)` hints at the rest, ctrl+o toggles the full list
 
 No err/warn
 ```

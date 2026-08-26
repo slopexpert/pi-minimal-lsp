@@ -17,6 +17,7 @@ See `specs/reference/lsp_keywords_diff.py` for a reference keyword algorithm tha
 - **Prefer `lsp_explore` over bash for orientation.** Never use `cd <dir> && ls`, `cat`, `head`, or `grep -r` to get a project or directory overview or to list a file's symbols. Use `lsp_explore` (no path = whole project, dir path = that dir, file path = file symbols).
 - Explore broad -> narrow: no path, then dir, then file. Don't read whole files to get oriented.
 - Empty query = full outline (no filter), not an empty search.
+- **Use `query` to narrow an overview**: it filters dirs/files by name or by their keywords (e.g. `query='db'` surfaces the files/dirs most relevant to DB code). Prefer scoping with query over scanning the full outline.
 - Use `lsp_search` if you know a symbol name, `lsp_at` for a location, `read` only after you've located something specific.
 - Scope bash (`grep`/`find`) to a directory you already know; never use it to orient.
 - Output is a bounded sample (`... N more` = more exists). Don't assume absence; drill deeper.
@@ -60,6 +61,7 @@ lsp_explore isshues/
 - The keywords and keyword icon (nf-md-text_recognition) should be muted
 - the `path` arg text should be fg
 - If no `path` arg is specified, don't show anything
+- output is collapsed to a ~10-entry preview; `N+ more (ctrl+o to expand)` hints at the rest, ctrl+o toggles the full list
 
 ### path is file
 ```markdown

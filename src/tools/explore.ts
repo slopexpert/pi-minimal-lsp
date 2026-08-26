@@ -139,6 +139,7 @@ export function registerExplore(pi: ExtensionAPI): void {
 		promptSnippet: "Browse a project, directory, or file outline token-efficiently",
 		promptGuidelines: [
 			"PREFER lsp_explore over bash for orientation: never use `cd <dir> && ls` / `cat` / `head` / `grep -r` to get a project or directory overview or to list a file's symbols. Use lsp_explore (no path = whole project, dir path = that dir, file path = file symbols) instead.",
+			"Use the `query` param to narrow an overview: it filters dirs/files by name OR by their keywords (e.g. lsp_explore with query='db' to surface the files/dirs most relevant to DB code). Prefer scoping with query over reading the whole outline.",
 			"Explore broad -> narrow with lsp_explore (no path, then dir, then file) instead of reading whole files to get oriented.",
 			"Use lsp_search if you know a symbol name and lsp_at for a precise location; use read only after you've located something specific, and scope bash (grep/find) to a dir you already know.",
 		],
