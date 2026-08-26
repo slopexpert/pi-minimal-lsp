@@ -87,7 +87,39 @@ export class FramedParser {
 }
 
 export function isResponse(msg: IncomingMessage): msg is ResponseMessage {
-	return typeof (msg as ResponseMessage).id !== "undefined" && "result" in msg || typeof (msg as ResponseMessage).id !== "undefined" && "error" in msg;
+	return (msg as ResponseMessage).id !== undefined && ("result" in msg || "error" in msg);
+}
+
+/** Byte-accurate frame parser for a language-server stdout stream.
+ *  Buffers raw bytes so multi-byte UTF-8 never splits across chunk reads. */
+export class ByteFramer {
+	private buf = Buffer.alloc(0);
+	private onMessage: (msg: IncomingMessage) => void;
+
+	constructor(onMessage: (msg: IncomingMessage) => void) {
+		this.onMessage = onMessage;
+	}
+
+	feed(chunk: Buffer): void {
+		this.buf = Buffer.concat([this.buf, chunk]);
+		// eslint-disable-next-line no-constant-condition
+		while (true) {
+			const idx = this.buf.indexOf("\r\n\r\n");
+			if (idx === -1) return;
+			const header = this.buf.subarray(0, idx).toString("ascii");
+			const match = /Content-Length:\s*(\d+)/i.exec(header);
+			if (!match) {
+				this.buf = this.buf.subarray(idx + 4);
+				continue;
+			}
+			const len = Number(match[1]);
+			const start = idx + 4;
+			if (this.buf.length < start + len) return;
+			const body = this.buf.subarray(start, start + len).toString("utf8");
+			this.buf = this.buf.subarray(start + len);
+			this.onMessage(JSON.parse(body) as IncomingMessage);
+		}
+	}
 }
 
 export function isNotification(msg: IncomingMessage): msg is NotificationMessage {
