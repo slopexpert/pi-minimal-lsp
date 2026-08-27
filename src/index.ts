@@ -11,6 +11,9 @@ import { registerSearch } from "./tools/search.ts";
 import { registerAt } from "./tools/at.ts";
 import { registerDiagnostics } from "./tools/diagnostics.ts";
 import { registerHooks } from "./hooks.ts";
+import { renderDiagnostics } from "./render.ts";
+
+export const DIAG_ENTRY = "lsp-diag";
 
 export default function (pi: ExtensionAPI): void {
 	pi.on("session_start", (event, ctx) => {
@@ -28,4 +31,11 @@ export default function (pi: ExtensionAPI): void {
 	registerAt(pi);
 	registerDiagnostics(pi);
 	registerHooks(pi);
+
+	// Human-facing card for write/edit diagnostics, printed right after the tool call.
+	pi.registerEntryRenderer(DIAG_ENTRY, (entry, { expanded }, theme) => {
+		const data = entry.data as { diagnostics?: any } | undefined;
+		if (!data?.diagnostics) return undefined;
+		return renderDiagnostics(data.diagnostics, { expanded, isPartial: false }, theme);
+	});
 }

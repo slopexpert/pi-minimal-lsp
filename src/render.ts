@@ -191,7 +191,7 @@ function renderAt(details: any, opts: RenderOpts, theme: any): Text {
   return text;
 }
 
-function renderDiagnostics(details: any, opts: RenderOpts, theme: any): Text {
+export function renderDiagnostics(details: any, opts: RenderOpts, theme: any): Text {
   const text = new Text("", 1, 0);
   if (
     details.ok &&
@@ -207,7 +207,7 @@ function renderDiagnostics(details: any, opts: RenderOpts, theme: any): Text {
   for (const d of items.slice(0, limit)) {
     const icon = d.severity === 1 ? ICON.error : ICON.warning;
     const color = d.severity === 1 ? "error" : "warning";
-    const msgColor = d.severity === 1 ? "text" : "muted";
+    const msgColor = color; // whole error line colored by severity
     content +=
       theme.fg(color, `${icon} `) +
       theme.fg(msgColor, clip(`${d.message} (${d.file}:${d.line}:${d.col})`)) +

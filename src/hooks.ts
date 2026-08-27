@@ -1,8 +1,9 @@
 /**
  * Agent-visible hooks:
  *  - write/edit diagnostics: after any write or edit tool call, check the
- *    affected file for diagnostics and inject any errors into the tool output
- *    while also surfacing them to the user.
+ *    affected file for diagnostics, append a plain `<errors ...>` block to the
+ *    agent-visible tool output, and print a pretty human-facing diagnostics
+ *    card into the transcript via appendEntry (rendered in index.ts).
  *  - format-at-agent_end: formatting is handled in a future spec; this is the
  *    reserved hook point (currently a no-op).
  */
@@ -13,6 +14,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getManager } from "./runtime.ts";
 import { isWithin } from "./helpers.ts";
 import type { Diagnostic } from "./lsp/types.ts";
+import { DIAG_ENTRY } from "./index.ts";
 
 const HOOKED_TOOLS = new Set(["write", "edit"]);
 
@@ -27,6 +29,7 @@ export function registerHooks(pi: ExtensionAPI): void {
 		const manager = getManager(ctx.cwd);
 		const res = manager.serverFor(abs);
 		if (!res) return; // no (available) server for this file
+		await res.handle.server.ready(); // warm a cold server so diagnostics flow
 
 		let text: string;
 		try {
@@ -39,21 +42,36 @@ export function registerHooks(pi: ExtensionAPI): void {
 		if (issues.length === 0) return;
 
 		const file = relative(ctx.cwd, abs);
+		// Agent-visible block (kept plain and machine-readable).
 		const lines = issues.map((d: Diagnostic) => {
 			const sev = d.severity === 1 ? "Error" : "Warning";
 			const line = d.range.start.line + 1;
 			const col = d.range.start.character + 1;
 			return `${sev}: ${d.message} (${file}:${line}:${col})`;
 		});
-		const block = `<errors in ${file}>\n${lines.join("\n")}\n</errors>`;
+		const agentBlock = `<errors in ${file}>\n${lines.join("\n")}\n</errors>`;
 
-		if (ctx.hasUI) {
-			const n = issues.filter((d: Diagnostic) => d.severity === 1).length;
-			ctx.ui.notify(`${file}: ${n} error(s), ${issues.length - n} warning(s)`, n > 0 ? "error" : "warning");
-		}
+		// Structured diagnostics; also print a pretty human-facing card after the tool call.
+		const errors = issues.filter((d) => d.severity === 1).length;
+		const warnings = issues.length - errors;
+		const diagnostics = {
+			ok: true,
+			kind: "diagnostics" as const,
+			total: issues.length,
+			errors,
+			warnings,
+			items: issues.map((d: Diagnostic) => ({
+				severity: d.severity ?? 2,
+				message: d.message,
+				file,
+				line: d.range.start.line + 1,
+				col: d.range.start.character + 1,
+			})),
+		};
+		pi.appendEntry(DIAG_ENTRY, { diagnostics });
 
 		return {
-			content: [...(event.content ?? []), { type: "text", text: block }],
+			content: [...(event.content ?? []), { type: "text", text: agentBlock }],
 		};
 	});
 

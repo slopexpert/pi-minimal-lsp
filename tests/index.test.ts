@@ -8,10 +8,14 @@ import factory from "../src/index.ts";
 
 const tools: Array<{ name: string; def: any }> = [];
 const events = new Map<string, number>();
+const entryRenderers = new Map<string, any>();
 
 const pi: any = {
 	registerTool(def: any) {
 		tools.push({ name: (def as any).name, def });
+	},
+	registerEntryRenderer(customType: string, renderer: any) {
+		entryRenderers.set(customType, renderer);
 	},
 	on(event: string) {
 		events.set(event, (events.get(event) ?? 0) + 1);
@@ -37,4 +41,9 @@ test("session + hook handlers registered", () => {
 	assert.equal(events.get("session_shutdown"), 1);
 	assert.equal(events.get("tool_result"), 1);
 	assert.equal(events.get("agent_end"), 1);
+});
+
+test("registers a diagnostics entry renderer", () => {
+	assert.equal(entryRenderers.size, 1);
+	assert.equal(typeof [...entryRenderers.values()][0], "function");
 });
